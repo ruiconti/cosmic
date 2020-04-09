@@ -1,0 +1,11 @@
+Metadata-Version: 1.2
+Name: allocation
+Version: 0.0.1
+Summary: Architectural Patterns
+Home-page: UNKNOWN
+Author: Rui Conti
+Author-email: ruiconti@gmail.com
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.7,<4.0

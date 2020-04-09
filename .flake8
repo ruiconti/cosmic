@@ -1,0 +1,6 @@
+[flake8]
+ignore = E731,
+max-line-length = 100
+max-complexity = 15 
+; TODO: decrease max-complexity to 5!!
+exclude = __init__.py,database.py
