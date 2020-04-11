@@ -36,15 +36,15 @@ class OrderLine:
         self.sku = sku
         self.qty = qty
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<OrderLine {self.order_id}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:  # type: ignore
         if not isinstance(other, OrderLine):
             return False
         return self.order_id == other.order_id
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.order_id)
 
 
@@ -124,64 +124,39 @@ class BatchOrder:
             )
 
         return all([cond_qty, cond_idem, cond_sku])
-        # return True if ((cond_qty) and (cond_idem)) else False
-
-    # def can_deallocate(self, order_id: str) -> Union[OrderLine, bool]:
-    #     try:
-    #         next(
-    #             filter(lambda o: o.order_id == order_id, self._allocations)
-    #         )
-    #     except StopIteration:
-    #         return False
 
 
-def find_earliest_batch(batches: List[BatchOrder]) -> BatchOrder:
-    dates = [batch.eta for batch in batches]
-    idx_earliest = min([batch.eta for batch in batches])
-    return batches[dates.index(idx_earliest)]
+class Product:
+    def __init__(
+        self, sku: str, batches: List[BatchOrder], version_number: int = 0
+    ):
+        self.sku = sku
+        self.batches = batches
+        self.version_number = version_number
+        # whenever we make a change to an instance of Product, we
+        # increment version_number
 
+    def allocate(self, line: OrderLine) -> str:
+        try:
+            # I can use sorted the way I want by defining __gt__
+            batch = next(
+                b for b in sorted(self.batches) if b.can_allocate(line)
+            )
+            batch.allocate(line)
+            self.version_number += 1  # here
+            return batch.reference
+        except StopIteration:
+            raise OutOfStock(f"Out of stock for SKU {line.sku}")
 
-def find_stock_batch(batches: List[BatchOrder]) -> Optional[BatchOrder]:
-    def ref_contains(batch: BatchOrder, substr: str) -> bool:
-        return str(batch.reference).__contains__(substr)
-
-    is_stock = lambda batch: ref_contains(batch, IN_STOCK)  # noqa: E731
-    # is_shipment = lambda batch: ref_contains(batch, SHIPMENT)
-    try:
-        return next(filter(is_stock, batches))
-    except StopIteration:
-        return None
-
-
-# def allocation_policy(batches: List[BatchOrder]) -> BatchOrder:
-#     stock = find_stock_batch(batches)
-#     if not stock:
-#         return find_earliest_batch(batches)
-#     return stock
-
-
-def allocate(line: OrderLine, batches: List[BatchOrder]) -> str:
-    # earliest = find_earliest_batch(batches)
-    # while earliest:
-    #     earliest.allocate(line)
-    #     assert line in earliest._allocations
-    #     batches.remove(earliest)
-    #     earliest = find_earliest_batch(batches)
-    # return earliest.reference
-    try:
-        # I can use sorted the way I want by defining __gt__
-        batch = next(b for b in sorted(batches) if b.can_allocate(line))
-        batch.allocate(line)
-        return batch.reference
-    except StopIteration:
-        raise OutOfStock(f"Out of stock for SKU {line.sku}")
-
-
-def deallocate(batches: List[BatchOrder]) -> str:
-    try:
-        batch = next(
-            b for b in sorted(batches, reverse=True) if b.can_deallocate()
-        )
-        return batch.deallocate().order_id
-    except KeyError:
-        raise OutOfStock(f"There are no stock left")
+    def deallocate(self) -> str:
+        try:
+            batch = next(
+                b
+                for b in sorted(self.batches, reverse=True)
+                if b.can_deallocate()
+            )
+            id_deallocated = batch.deallocate().order_id
+            self.version_number += 1
+            return id_deallocated
+        except KeyError:
+            raise OutOfStock(f"There are no stock left")
