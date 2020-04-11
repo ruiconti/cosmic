@@ -18,14 +18,23 @@ order_lines: Table = Table(
     Column("qty", Integer, nullable=False),
 )
 
+products = Table(
+    "products",
+    metadata,
+    # Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("sku", String(255), primary_key=True),
+    Column("version_number", Integer, nullable=False, server_default="0"),
+)
+
 batches: Table = Table(
     "batches",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("reference", String(255)),
-    Column("sku", String(255)),
+    # Column("sku", String(255)),
+    Column("sku", ForeignKey("products.sku")),
     Column("qty_purchase", Integer, nullable=False),
-    Column("eta", DateTime, nullable=False),
+    Column("eta", DateTime, nullable=True),
     Column("created_at", DateTime),
 )
 
@@ -55,6 +64,11 @@ def start_mappers(engine: Optional[Engine] = None) -> None:
                 mapper_lines, secondary=allocations, collection_class=set,
             )
         },
+    )
+    mapper(
+        model.Product,
+        products,
+        properties={"batches": relationship(mapper_batches)},
     )
     # mapper(model.Product, products, properties={
     #     "batches": relationship(mapper_batches)})
