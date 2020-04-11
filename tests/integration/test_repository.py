@@ -1,55 +1,26 @@
-from datetime import date
-
+# Tests Repository Adapter
+# Expected behavior of interface to persistant storage
+# No testing of services' layer abstractions. Only UoW's abstractions
+# Domain's imported to simulate Service Layer behavior
+# Rui Conti, Apr 2020
 from sqlalchemy.orm import Session  # type: ignore
 
-import allocation.adapters.repository as repository
-
-import allocation.adapters.repository as repository  # type: ignoere
-import allocation.domain.model as model  # type: ignore
+from allocation.domain import model  # type: ignore
+from allocation.adapters import repository  # type: ignore
 
 
-def insert_order_line(postgres_session: Session) -> str:
-    postgres_session.execute(
-        "INSERT INTO order_lines (order_id, sku, qty)"
-        ' VALUES ("order-01", "LIRIO-P15", 19)'
-    )
-    [[order_line_id]] = postgres_session.execute(
-        "SELECT id FROM order_lines WHERE order_id:order_id " "AND sku=:sku",
-        dict(order_id="order-01", sku="LIRIO-P15"),
-    )
-    return order_line_id
+def test_get_by_batchref(sqlite_session: Session):
+    repo = repository.SqlAlchemyProductRepository(sqlite_session)
+    b1 = model.BatchOrder("b1", sku="SKU-01", qty=100, eta=None)
+    b2 = model.BatchOrder("b2", sku="SKU-01", qty=50, eta=None)
+    b3 = model.BatchOrder("b3", sku="SKU-02", qty=75, eta=None)
+    p1 = model.Product("SKU-01", [b1, b2])
+    p2 = model.Product("SKU-02", [b3])
 
+    repo.add(p1)
+    repo.add(p2)
+    # we're not testing UoW so we need to commit :)
+    sqlite_session.commit()
 
-# DISCLAIMER: this is tested on "integration/test_uow.py"
-# def test_repository_can_save_a_batch(postgres_session: Session) -> None:
-#     repo = repository.SqlAlchemyRepository(postgres_session)
-#     batch = model.BatchOrder("batch-ref-01", "BONSAI-P24", 150, eta=None)
-#     repo.add(batch)
-#     postgres_session.commit()
-#     # We keep the .commit() outside of the repository and make it the responsibility of the caller.
-#     # There are pros and cons for this
-
-#     rows = list(
-#         postgres_session.execute(
-#             "SELECT batch_id, sku, qty_purchase, eta FROM batches"
-#         )
-#     )
-#     assert rows == [("batch-ref-01", "BONSAI-P24", 150, None)]
-
-
-def insert_batch(postgres_session: Session, ref: str) -> None:
-    postgres_session.execute(
-        "INSERT INTO batches (reference, sku, qty_purchase, eta, created_at)"
-        ' VALUES (":ref", ":sku", ":qty_purchase", ":eta", :created_at)',
-        dict(
-            reference=ref,
-            sku="LIRIO-P15",
-            qty_purchase=50,
-            eta=None,
-            created_at=date.today(),
-        ),
-    )
-    [[order_line_id]] = postgres_session.execute(
-        "SELECT id FROM order_lines WHERE order_id:order_id " "AND sku=:sku",
-        dict(order_id="order-01", sku="LIRIO-P15"),
-    )
+    assert repo.get_by_batchref("b1") == p1
+    assert repo.get_by_batchref("b3") == p2
