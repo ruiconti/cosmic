@@ -1,7 +1,16 @@
-from dataclasses import dataclass
+"Domain Layer"
+# Single place where business logic lies on code-base
+# Expected behaviors are mapped to
+#   Entities: Identifiable changing abstractions,
+#   Value Objects: Immutable attribute-identifiable abstractions,
+#   Services: Abstractions that are better represented by an action and
+#   Aggregates: Single entry-point to a domain and represents a unit
+#       of business transactions and services
+# Cleanest layer and no extenral dependencies are made
+# Rui Conti, Apr 2020
 from datetime import date
 
-from typing import Optional, List, Union
+from typing import Optional, List
 
 
 IN_STOCK = "in-stock"

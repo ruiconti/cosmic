@@ -1,3 +1,8 @@
+"Unit of Work Adapter"
+# UoW represents a way to encapsulate transactions on a single unit.
+# Doing so at a Service Domain layer, we do not need to worry
+# about consistency issues because of concurrent transactions
+# Rui Conti, Apr 2020
 import abc
 
 from typing import Callable
@@ -11,13 +16,14 @@ from allocation.adapters import repository
 
 DEFAULT_SESSION_FACTORY = orm.sessionmaker(
     bind=create_engine(
-        config.get_postgres_uri(), isolation_level="SERIALIZABLE"
-    )
+        config.get_postgres_uri(), isolation_level="SERIALIZABLE",
+    ),
+    autoflush=False,
 )
 
 
 class AbstractUnitOfWork(abc.ABC):
-    batches: repository.AbstractRepository
+    products: repository.AbstractProductRepository
 
     def __enter__(self):  # type: ignore
         return self
@@ -36,7 +42,7 @@ class AbstractUnitOfWork(abc.ABC):
 
 class FakeUnitOfWork(AbstractUnitOfWork):
     def __init__(self) -> None:
-        self.batches = repository.FakeRepository([])
+        self.products = repository.FakeProductRepository([])
         self.commited = False
 
     def commit(self) -> None:
@@ -52,9 +58,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     def __enter__(self) -> AbstractUnitOfWork:
         self.session: orm.Session = self.session_factory()
-        self.batches: repository.SqlAlchemyRepository = repository.SqlAlchemyRepository(
-            self.session
-        )
+        self.products = repository.SqlAlchemyProductRepository(self.session)
         return super().__enter__()
 
     def commit(self) -> None:

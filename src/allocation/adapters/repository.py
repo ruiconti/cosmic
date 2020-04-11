@@ -1,4 +1,9 @@
-# Rui Conti
+"""Repository Adapter"""
+# Repository is a means to associate a Domain Aggregate to
+# a persistant storage
+# It can be thought of a in-memory representation of an
+# Aggregate Collection
+# Rui Conti, Apr 2020
 import abc
 from typing import List, Set
 
