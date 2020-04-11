@@ -86,19 +86,13 @@ class SqlAlchemyProductRepository(AbstractProductRepository):
 
 
 class FakeProductRepository(AbstractProductRepository):
-    # def __init__(self, batches):
-    #     self._batches = set(batches)
-    def __init__(self, products):
+    def __init__(self, products: List[model.Product]):
         self._products = set(products)
         super().__init__()
 
-    # def add(self, batch: model.BatchOrder) -> None:
-    #     self._batches.add(batch)
     def _add(self, product: model.Product) -> None:
         self._products.add(product)
 
-    # def get(self, reference: str) -> model.BatchOrder:
-    #     return next(filter(lambda b: b.reference == reference, self._batches))
     def _get(self, sku: str) -> model.Product:
         try:
             return next(filter(lambda p: p.sku == sku, self._products))
