@@ -71,29 +71,29 @@ class BatchOrder:
         self.sku = sku
         self.eta = eta
         self.qty_purchase = qty
-        self._allocations = set()
+        self._allocations: set = set()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<BatchOrder {self.reference}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # type: ignore
         if not isinstance(other, BatchOrder):
             return False
         return other.reference == self.reference
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         "Defines the behavior of objects when adding them "
         "to sets or using as dict keys "
         "Further reading: https://hynek.me/articles/hashes-and-equality/"
         return hash(self.reference)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:  # type: ignore
         """Conditions that make (self >= other) == True
         Meaning that self is equal or greather than the other (in any sense you wish)
-        
+
         For what states of `other` that `self` BatchOrder should be
         considered greater than `other`
-        
+
         If you think of ordering OrderBatches in a list
         `[a b c d e]` that will be iterated ascendingly on a given priority,
         `__gt__` defines what makes `elementof(list)` LESS prioritized"""
