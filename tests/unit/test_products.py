@@ -3,8 +3,8 @@
 # Rui Conti, Apr 2020
 from datetime import date, timedelta
 
+from allocation.domain import events
 from allocation.domain.model import BatchOrder, OrderLine, Product  # type: ignore
-
 
 TOMORROW = date.today() + timedelta(days=1)
 YESTERDAY = date.today() - timedelta(days=1)
@@ -49,3 +49,36 @@ def test_version_number_increments() -> None:
     assert product.version_number == 1
     product.deallocate()
     assert product.version_number == 2
+
+
+def test_records_out_of_stock_event_if_cannot_allocate():
+    sku = "KALANCHOE-EVENTO"
+    batch = BatchOrder("b1", sku, 15, eta=TOMORROW)
+    product = Product(sku, batches=[batch])
+
+    product.allocate(OrderLine("o1", sku, 10))
+    b2 = product.allocate(OrderLine("o2", sku, 20))
+
+    assert product.latest_event == events.OutOfStock(sku=sku)
+    assert b2 is None
+
+
+def test_create_batch_emmits_events():
+    sku = "KALANCHOE-EVENTO"
+    batch = BatchOrder("b1", sku, 100, eta=TOMORROW)
+    product = Product(sku, batches=[batch])
+
+    product.add_batch(batch)
+    assert type(product.latest_event) == events.BatchCreated
+
+
+def test_allocation_emmits_events():
+    sku = "KALANCHOE-EVENTO"
+    batch = BatchOrder("b1", sku, 100, eta=TOMORROW)
+    product = Product(sku, batches=[batch])
+    line = OrderLine("o1", sku, qty=85)
+
+    product.add_batch(batch)
+    product.allocate(line)
+
+    assert type(product.latest_event) == events.Allocated

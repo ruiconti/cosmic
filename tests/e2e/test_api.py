@@ -41,8 +41,8 @@ def test_happy_path_201_allocated_batch(client_api) -> None:
     data = {"order_id": random_orderid(), "sku": sku, "qty": 90}
     # url = config.get_api_url()
     r = client_api.post(f"/allocate", json=data)
-    assert r.status_code == 201
-    assert r.json["batchref"] == earlybatch
+    assert r.status_code == 202
+    # assert r.json["batchref"] == earlybatch
 
 
 # @pytest.mark.usefixtures("restart_api")
