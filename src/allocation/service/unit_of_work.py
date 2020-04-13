@@ -5,7 +5,7 @@
 # Rui Conti, Apr 2020
 import abc
 
-from typing import Callable
+from typing import Callable, Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy import orm
@@ -31,8 +31,34 @@ class AbstractUnitOfWork(abc.ABC):
     def __exit__(self, *args):  # type: ignore
         self.rollback()
 
-    @abc.abstractmethod
+    def collect_events(self) -> None:
+        pass
+
+    def collect_new_events(self) -> Generator:
+        """Unit of Work is responsible for connecting messages (commands and events)
+        raised from Domain Layer to the Message Bus
+
+        Message Bus calls this method to handle any new event that might have been
+        raised after some command was ran"""
+        for product in self.products.seen:
+            while product._events:
+                yield product._events.pop(0)
+
+    # def publish_events(self) -> None:
+    #     """Unit of Work is responsible for connecting events raised on Domain layer
+    #     to the message bus to handle them"""
+    #     for product in self.products.seen:
+    #         while product.events:
+    #             event = product.events.pop()
+    #             message_bus.handle(event)
+
     def commit(self) -> None:
+        """Every time a commit is made, we try to commit current database transaction"""
+        self._commit()
+        # self.publish_events()
+
+    @abc.abstractmethod
+    def _commit(self) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -45,7 +71,7 @@ class FakeUnitOfWork(AbstractUnitOfWork):
         self.products = repository.FakeProductRepository([])
         self.commited = False
 
-    def commit(self) -> None:
+    def _commit(self) -> None:
         self.commited = True
 
     def rollback(self) -> None:
@@ -61,7 +87,11 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.products = repository.SqlAlchemyProductRepository(self.session)
         return super().__enter__()
 
-    def commit(self) -> None:
+    def __exit__(self, *args):  # type: ignore
+        super().__exit__(*args)
+        self.session.close()
+
+    def _commit(self) -> None:
         self.session.commit()
 
     def rollback(self) -> None:
