@@ -12,6 +12,7 @@ from datetime import date
 
 from typing import Optional, List
 
+from allocation.domain import events
 
 IN_STOCK = "in-stock"
 SHIPMENT = "shipment"
@@ -27,13 +28,6 @@ class BatchIdempotency(Exception):
     def __init__(self, message: str):
         self.message = message
         super().__init__(message)
-
-
-# @dataclass(unsafe_hash=True)
-# class OrderLine:
-#     order_id: str
-#     sku: str
-#     qty: int = 0
 
 
 # from collections import namedtuple
@@ -55,12 +49,6 @@ class OrderLine:
 
     def __hash__(self) -> int:
         return hash(self.order_id)
-
-
-# def __init__(self, ref: str, sku: str, qty: int):
-#     self.order_id = ref
-#     self.sku = sku
-#     self.qty = qty
 
 
 class BatchOrder:
@@ -137,35 +125,74 @@ class BatchOrder:
 
 class Product:
     def __init__(
-        self, sku: str, batches: List[BatchOrder], version_number: int = 0
+        self, sku: str, batches: List[BatchOrder], version_number: int = 0,
     ):
-        self.sku = sku
-        self.batches = batches
-        self.version_number = version_number
+        self.sku: str = sku
+        self.batches: List[BatchOrder] = batches
+        self.version_number: int = version_number
+        self._events: List[events.Event] = []
         # whenever we make a change to an instance of Product, we
         # increment version_number
 
-    def allocate(self, line: OrderLine) -> str:
+    @property
+    def latest_event(self) -> Optional[events.Event]:
+        try:
+            return self._events[-1]
+        except IndexError:
+            return None
+
+    def add_batch(self, batch: BatchOrder) -> None:
+        self.batches.append(batch)
+        self._events.append(
+            events.BatchCreated(
+                batch.reference, batch.sku, batch.qty_purchase, batch.eta
+            )
+        )
+
+    def allocate(self, line: OrderLine) -> None:
         try:
             # I can use sorted the way I want by defining __gt__
             batch = next(
                 b for b in sorted(self.batches) if b.can_allocate(line)
             )
             batch.allocate(line)
+            self._events.append(
+                events.Allocated(
+                    order_id=line.order_id,
+                    batch_ref=batch.reference,
+                    sku=line.sku,
+                    qty=line.qty,
+                )
+            )
             self.version_number += 1  # here
-            return batch.reference
+            # return batch.reference
         except StopIteration:
-            raise OutOfStock(f"Out of stock for SKU {line.sku}")
+            # raise OutOfStock(f"Out of stock for SKU {line.sku}")
+            self._events.append(events.OutOfStock(sku=line.sku))
+        except BatchIdempotency:
+            self._events.append(
+                events.OrderAlreadyAllocated(order_id=line.order_id)
+            )
+        # return None
 
-    def deallocate(self) -> str:
+    def deallocate(self) -> None:
         try:
             batch = next(
                 b
                 for b in sorted(self.batches, reverse=True)
                 if b.can_deallocate()
             )
-            id_deallocated = batch.deallocate().order_id
+            line = batch.deallocate()
+            self._events.append(
+                events.Deallocated(
+                    batch_ref=batch.reference,
+                    order_id=line.order_id,
+                    sku=line.sku,
+                    qty=line.qty,
+                )
+            )
             self.version_number += 1
-            return id_deallocated
         except KeyError:
-            raise OutOfStock(f"There are no stock left")
+            self._events.append(events.AllocationsEmpty())
+            # return None
+            # raise OutOfStock(f"There are no stock left")
