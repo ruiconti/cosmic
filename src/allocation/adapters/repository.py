@@ -15,6 +15,8 @@ from allocation.domain import model
 
 class AbstractProductRepository(abc.ABC):
     def __init__(self) -> None:
+        """This set holds a reference to all aggregates that have been used
+        during current transaction"""
         self.seen: Set[model.Product] = set()
 
     def add(self, product: model.Product) -> None:
@@ -61,12 +63,6 @@ class SqlAlchemyProductRepository(AbstractProductRepository):
     def _add(self, product: model.Product) -> None:
         self.session.add(product)
 
-    # def get(self, reference: str) -> model.BatchOrder:
-    #     return (
-    #         self.session.query(model.BatchOrder)
-    #         .filter_by(reference=reference)
-    #         .first()
-    #     )
     def _get(self, sku: str) -> model.Product:
         return self.session.query(model.Product).filter_by(sku=sku).first()
 
@@ -87,8 +83,8 @@ class SqlAlchemyProductRepository(AbstractProductRepository):
 
 class FakeProductRepository(AbstractProductRepository):
     def __init__(self, products: List[model.Product]):
-        self._products = set(products)
         super().__init__()
+        self._products = set(products)
 
     def _add(self, product: model.Product) -> None:
         self._products.add(product)
