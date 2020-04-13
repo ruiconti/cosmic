@@ -22,7 +22,7 @@ def wait_for_webapp_to_come_up() -> requests.Response:
 
 
 @retry(stop=stop_after_delay(10))
-def wait_for_postgres_to_come_up(eng: engine.Engine) -> engine.Connection:
+def wait_for_engine_to_come_up(eng: engine.Engine) -> engine.Connection:
     return eng.connect()
 
 
@@ -43,21 +43,48 @@ def client_api() -> None:
 
 @pytest.fixture(scope="session")
 def postgres_db():
-    engine = create_engine(config.get_postgres_uri())
-    wait_for_postgres_to_come_up(engine)
+    engine = create_engine(
+        # ISOLATION LEVEL ENSURES version IS RESPECTED
+        config.get_postgres_uri(),
+        isolation_level="REPEATABLE READ",
+    )
+    wait_for_engine_to_come_up(engine)
     metadata.create_all(engine)
     return engine
 
 
 # Uses postgres_db as fixture as an Engine object
 @pytest.fixture  # type: ignore
-def postgres_session_factory(postgres_db: engine.Engine) -> None:
+def postgres_session_factory(postgres_db: engine.Engine):
     clear_mappers()
     start_mappers(postgres_db)  # tear-up
-    return orm.sessionmaker(bind=postgres_db)  # deliver to next fixture
+    yield orm.sessionmaker(
+        bind=postgres_db, autoflush=False
+    )  # deliver to next fixture
     clear_mappers()  # tear-down
 
 
 @pytest.fixture
-def postgres_session(postgres_session_factory: Callable) -> None:
+def postgres_session(postgres_session_factory: Callable):
     return postgres_session_factory()
+
+
+@pytest.fixture
+def sqlite_db():
+    engine = create_engine("sqlite:///:memory:")
+    wait_for_engine_to_come_up(engine)
+    metadata.create_all(engine)
+    return engine
+
+
+@pytest.fixture
+def sqlite_session_factory(sqlite_db):
+    clear_mappers()
+    start_mappers(sqlite_db)
+    yield orm.sessionmaker(bind=sqlite_db, autoflush=False, autocommit=False)
+    clear_mappers()
+
+
+@pytest.fixture
+def sqlite_session(sqlite_session_factory):
+    yield sqlite_session_factory()

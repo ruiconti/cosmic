@@ -1,8 +1,18 @@
-from dataclasses import dataclass
+"Domain Layer"
+# Single place where business logic lies on code-base
+# Expected behaviors are mapped to
+#   Entities: Identifiable changing abstractions,
+#   Value Objects: Immutable attribute-identifiable abstractions,
+#   Services: Abstractions that are better represented by an action and
+#   Aggregates: Single entry-point to a domain and represents a unit
+#       of business transactions and services
+# Cleanest layer and no extenral dependencies are made
+# Rui Conti, Apr 2020
 from datetime import date
 
-from typing import Optional, List, Union
+from typing import Optional, List
 
+from allocation.domain import events
 
 IN_STOCK = "in-stock"
 SHIPMENT = "shipment"
@@ -20,13 +30,6 @@ class BatchIdempotency(Exception):
         super().__init__(message)
 
 
-# @dataclass(unsafe_hash=True)
-# class OrderLine:
-#     order_id: str
-#     sku: str
-#     qty: int = 0
-
-
 # from collections import namedtuple
 
 # OrderLine = namedtuple("OrderLine", "order_id sku qty")
@@ -36,22 +39,16 @@ class OrderLine:
         self.sku = sku
         self.qty = qty
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<OrderLine {self.order_id}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:  # type: ignore
         if not isinstance(other, OrderLine):
             return False
         return self.order_id == other.order_id
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.order_id)
-
-
-# def __init__(self, ref: str, sku: str, qty: int):
-#     self.order_id = ref
-#     self.sku = sku
-#     self.qty = qty
 
 
 class BatchOrder:
@@ -62,29 +59,29 @@ class BatchOrder:
         self.sku = sku
         self.eta = eta
         self.qty_purchase = qty
-        self._allocations = set()
+        self._allocations: set = set()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<BatchOrder {self.reference}>"
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # type: ignore
         if not isinstance(other, BatchOrder):
             return False
         return other.reference == self.reference
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         "Defines the behavior of objects when adding them "
         "to sets or using as dict keys "
         "Further reading: https://hynek.me/articles/hashes-and-equality/"
         return hash(self.reference)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:  # type: ignore
         """Conditions that make (self >= other) == True
         Meaning that self is equal or greather than the other (in any sense you wish)
-        
+
         For what states of `other` that `self` BatchOrder should be
         considered greater than `other`
-        
+
         If you think of ordering OrderBatches in a list
         `[a b c d e]` that will be iterated ascendingly on a given priority,
         `__gt__` defines what makes `elementof(list)` LESS prioritized"""
@@ -124,64 +121,78 @@ class BatchOrder:
             )
 
         return all([cond_qty, cond_idem, cond_sku])
-        # return True if ((cond_qty) and (cond_idem)) else False
-
-    # def can_deallocate(self, order_id: str) -> Union[OrderLine, bool]:
-    #     try:
-    #         next(
-    #             filter(lambda o: o.order_id == order_id, self._allocations)
-    #         )
-    #     except StopIteration:
-    #         return False
 
 
-def find_earliest_batch(batches: List[BatchOrder]) -> BatchOrder:
-    dates = [batch.eta for batch in batches]
-    idx_earliest = min([batch.eta for batch in batches])
-    return batches[dates.index(idx_earliest)]
+class Product:
+    def __init__(
+        self, sku: str, batches: List[BatchOrder], version_number: int = 0,
+    ):
+        self.sku: str = sku
+        self.batches: List[BatchOrder] = batches
+        self.version_number: int = version_number
+        self._events: List[events.Event] = []
+        # whenever we make a change to an instance of Product, we
+        # increment version_number
 
+    @property
+    def latest_event(self) -> Optional[events.Event]:
+        try:
+            return self._events[-1]
+        except IndexError:
+            return None
 
-def find_stock_batch(batches: List[BatchOrder]) -> Optional[BatchOrder]:
-    def ref_contains(batch: BatchOrder, substr: str) -> bool:
-        return str(batch.reference).__contains__(substr)
-
-    is_stock = lambda batch: ref_contains(batch, IN_STOCK)  # noqa: E731
-    # is_shipment = lambda batch: ref_contains(batch, SHIPMENT)
-    try:
-        return next(filter(is_stock, batches))
-    except StopIteration:
-        return None
-
-
-# def allocation_policy(batches: List[BatchOrder]) -> BatchOrder:
-#     stock = find_stock_batch(batches)
-#     if not stock:
-#         return find_earliest_batch(batches)
-#     return stock
-
-
-def allocate(line: OrderLine, batches: List[BatchOrder]) -> str:
-    # earliest = find_earliest_batch(batches)
-    # while earliest:
-    #     earliest.allocate(line)
-    #     assert line in earliest._allocations
-    #     batches.remove(earliest)
-    #     earliest = find_earliest_batch(batches)
-    # return earliest.reference
-    try:
-        # I can use sorted the way I want by defining __gt__
-        batch = next(b for b in sorted(batches) if b.can_allocate(line))
-        batch.allocate(line)
-        return batch.reference
-    except StopIteration:
-        raise OutOfStock(f"Out of stock for SKU {line.sku}")
-
-
-def deallocate(batches: List[BatchOrder]) -> str:
-    try:
-        batch = next(
-            b for b in sorted(batches, reverse=True) if b.can_deallocate()
+    def add_batch(self, batch: BatchOrder) -> None:
+        self.batches.append(batch)
+        self._events.append(
+            events.BatchCreated(
+                batch.reference, batch.sku, batch.qty_purchase, batch.eta
+            )
         )
-        return batch.deallocate().order_id
-    except KeyError:
-        raise OutOfStock(f"There are no stock left")
+
+    def allocate(self, line: OrderLine) -> None:
+        try:
+            # I can use sorted the way I want by defining __gt__
+            batch = next(
+                b for b in sorted(self.batches) if b.can_allocate(line)
+            )
+            batch.allocate(line)
+            self._events.append(
+                events.Allocated(
+                    order_id=line.order_id,
+                    batch_ref=batch.reference,
+                    sku=line.sku,
+                    qty=line.qty,
+                )
+            )
+            self.version_number += 1  # here
+            # return batch.reference
+        except StopIteration:
+            # raise OutOfStock(f"Out of stock for SKU {line.sku}")
+            self._events.append(events.OutOfStock(sku=line.sku))
+        except BatchIdempotency:
+            self._events.append(
+                events.OrderAlreadyAllocated(order_id=line.order_id)
+            )
+        # return None
+
+    def deallocate(self) -> None:
+        try:
+            batch = next(
+                b
+                for b in sorted(self.batches, reverse=True)
+                if b.can_deallocate()
+            )
+            line = batch.deallocate()
+            self._events.append(
+                events.Deallocated(
+                    batch_ref=batch.reference,
+                    order_id=line.order_id,
+                    sku=line.sku,
+                    qty=line.qty,
+                )
+            )
+            self.version_number += 1
+        except KeyError:
+            self._events.append(events.AllocationsEmpty())
+            # return None
+            # raise OutOfStock(f"There are no stock left")

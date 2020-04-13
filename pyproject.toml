@@ -17,6 +17,7 @@ redis = "^3.4.1"
 flask = "^1.1.1"
 fastapi = "^0.52.0"
 psycopg2 = "^2.8.5"
+alembic = "^1.4.2"
 
 [tool.poetry.dev-dependencies]
 

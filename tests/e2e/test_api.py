@@ -1,10 +1,9 @@
-from typing import Any, Callable, List
+# Tests API's entrypoint
+# Expected behaviors on API requests and responses exclusively
+# No usage of domain, services nor any adaptor
+# Rui Conti, Apr 2020
+from typing import Any, List
 
-import pytest  # type: ignore
-import requests
-from datetime import date
-
-from allocation import config
 from tests.helpers import random_sku, random_batchref, random_orderid
 
 # CHANGELOG
@@ -42,8 +41,8 @@ def test_happy_path_201_allocated_batch(client_api) -> None:
     data = {"order_id": random_orderid(), "sku": sku, "qty": 90}
     # url = config.get_api_url()
     r = client_api.post(f"/allocate", json=data)
-    assert r.status_code == 201
-    assert r.json["batchref"] == earlybatch
+    assert r.status_code == 202
+    # assert r.json["batchref"] == earlybatch
 
 
 # @pytest.mark.usefixtures("restart_api")
@@ -55,59 +54,3 @@ def test_unhappy_path_400_error_message(client_api) -> None:
     r = client_api.post(f"/allocate", json=data)
     assert r.status_code == 400
     assert r.json["message"] == f"Invalid sku {unknown_sku}"
-
-
-# # @pytest.mark.usefixtures("restart_api")
-# def test_allocations_are_persisted(restart_api, add_stock: Callable) -> None:
-#     sku = random_sku()
-#     batch1, batch2 = random_batchref(str(1)), random_batchref(str(2))
-#     order1, order2 = random_orderid(str(1)), random_orderid(str(2))
-
-#     add_stock(
-#         [(batch1, sku, 10, "2011-01-01"), (batch2, sku, 10, "2011-01-02")]
-#     )
-#     line1 = {"orderid": order1, "sku": sku, "qty": 10}
-#     line2 = {"orderid": order2, "sku": sku, "qty": 10}
-#     url = config.get_api_url()
-
-#     # first order uses up all stock in batch 1
-#     r = requests.post(f"{url}/allocate", json=line1)
-#     assert r.status_code == 201
-#     assert r.json()["batchref"] == batch1
-
-#     # second order should go to batch2
-#     r = requests.post(f"{url}/allocate", json=line2)
-#     assert r.status_code == 201
-#     assert r.json()["batchref"] == batch2
-
-
-# # @pytest.mark.usefixtures("restartapi")
-# def test_400_out_of_stock(restart_api: Callable, add_stock: Callable) -> None:
-#     sku, small_batch, large_order = (
-#         random_sku(),
-#         random_batchref(),
-#         random_orderid(),
-#     )
-
-#     add_stock([(small_batch, sku, 5, "2011-01-01")])
-
-#     data = {"orderid": large_order, "sku": sku, "qty": 15}
-
-#     # try to allocate an order that exceeds stock
-#     url = config.get_api_url()
-#     r = requests.post(f"{url}/allocate", json=data)
-#     assert r.status_code == 400
-#     assert r.json()["message"] == f"Out of stock for sku {sku}"
-
-
-# # @pytest.mark.usefixtures("restartapi")
-# def test_400_invalid_sku(add_stock: Callable) -> None:
-#     unknown_sku, orderid = random_sku(), random_orderid()
-
-#     data = {"orderid": orderid, "sku": unknown_sku, "qty": 5}
-
-#     # try to allocate an order that has no sku in stock
-#     url = config.get_api_url()
-#     r = requests.post(f"{url}/allocate", json=data)
-#     assert r.status_code == 400
-#     assert r.json()["message"] == f"Invalid sku {unknown_sku}"

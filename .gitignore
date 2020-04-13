@@ -4,3 +4,4 @@
 *.coverage
 *egg-info
 dist/
+*.lock

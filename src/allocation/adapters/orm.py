@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
+from sqlalchemy import event
 from sqlalchemy import Column, DateTime, Integer, String, Table, ForeignKey
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Engine
@@ -18,14 +19,23 @@ order_lines: Table = Table(
     Column("qty", Integer, nullable=False),
 )
 
+products = Table(
+    "products",
+    metadata,
+    # Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("sku", String(255), primary_key=True),
+    Column("version_number", Integer, nullable=False, server_default="0"),
+)
+
 batches: Table = Table(
     "batches",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("reference", String(255)),
-    Column("sku", String(255)),
+    # Column("sku", String(255)),
+    Column("sku", ForeignKey("products.sku")),
     Column("qty_purchase", Integer, nullable=False),
-    Column("eta", DateTime, nullable=False),
+    Column("eta", DateTime, nullable=True),
     Column("created_at", DateTime),
 )
 
@@ -56,5 +66,15 @@ def start_mappers(engine: Optional[Engine] = None) -> None:
             )
         },
     )
+    mapper(
+        model.Product,
+        products,
+        properties={"batches": relationship(mapper_batches)},
+    )
     # mapper(model.Product, products, properties={
     #     "batches": relationship(mapper_batches)})
+
+
+@event.listens_for(model.Product, "load")
+def receive_events_on_loading(product: model.Product, _: Any) -> None:
+    product._events = []

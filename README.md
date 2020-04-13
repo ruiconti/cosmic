@@ -13,10 +13,21 @@ It is advisable to run this project under a specific environment running Python 
 $ poetry install
 ```
 
-### Tests
+### Migrations
 
-TDD is being (really) employed so to get a glimpse and run tests:
+In order to update database to recent changes on declared metadata, we're using `alembic`. By doing
 
 ```bash
-$ pytest
+alembic upgrade head
+```
+
+You should be able to reach most-recent state
+
+
+### Tests
+
+TDD is being employed so in order to run and test implementations, abstracted to `Makefile`:
+
+```bash
+$ make test
 ```
