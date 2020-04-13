@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
+from sqlalchemy import event
 from sqlalchemy import Column, DateTime, Integer, String, Table, ForeignKey
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Engine
@@ -72,3 +73,8 @@ def start_mappers(engine: Optional[Engine] = None) -> None:
     )
     # mapper(model.Product, products, properties={
     #     "batches": relationship(mapper_batches)})
+
+
+@event.listens_for(model.Product, "load")
+def receive_events_on_loading(product: model.Product, _: Any) -> None:
+    product._events = []
