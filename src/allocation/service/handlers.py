@@ -9,6 +9,7 @@
 from typing import List
 
 # from allocation.adapters.repository import AbstractRepository
+from allocation.adapters import redis
 from allocation.domain import events, commands, model
 from allocation.service import unit_of_work
 
@@ -46,6 +47,29 @@ def change_batch_qty(
     ref: str, qty: int, uow: unit_of_work.AbstractUnitOfWork
 ) -> None:
     pass
+
+
+def publish_to_log_channel(
+    event: events.Event, uow: unit_of_work.AbstractUnitOfWork
+) -> None:
+    redis.publish_message("allocation-events", str(event))
+
+
+def add_allocation_to_read_model(
+    event: events.Allocated, uow: unit_of_work.AbstractUnitOfWork
+) -> None:
+    with uow:
+        uow.session.execute(
+            "INSERT INTO allocations_view (id_orderline, batchref, sku, qty) "
+            "VALUES (:order_id, :batchref, :sku, :qty)",
+            dict(
+                order_id=event.order_id,
+                batchref=event.batch_ref,
+                sku=event.sku,
+                qty=event.qty,
+            ),
+        )
+        uow.commit()
 
 
 def allocate(
