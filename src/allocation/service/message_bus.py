@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 EVENTS_HANDLERS = {
     events.OutOfStock: [handlers.send_out_of_stock_notification],
     events.OrderAlreadyAllocated: [handlers.log_to_sentry],
-    events.BatchCreated: [],
-    events.Allocated: [],
+    events.BatchCreated: [handlers.publish_to_log_channel],
+    events.Allocated: [
+        handlers.add_allocation_to_read_model,
+        handlers.publish_to_log_channel,
+    ],
     events.Deallocated: [],
 }
 
@@ -34,6 +37,7 @@ def handle_event(
     queue: List[Message],
     uow: unit_of_work.AbstractUnitOfWork,
 ) -> None:
+    handlers.publish_to_log_channel(event, uow)
     for handler in EVENTS_HANDLERS[type(event)]:
         try:
             logger.info("Handling event %s with handler %s", event, handler)
