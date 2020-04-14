@@ -42,7 +42,6 @@ def test_happy_path_201_allocated_batch(client_api) -> None:
     # url = config.get_api_url()
     r = client_api.post(f"/allocate", json=data)
     assert r.status_code == 202
-    # assert r.json["batchref"] == earlybatch
 
 
 # @pytest.mark.usefixtures("restart_api")
@@ -54,3 +53,28 @@ def test_unhappy_path_400_error_message(client_api) -> None:
     r = client_api.post(f"/allocate", json=data)
     assert r.status_code == 400
     assert r.json["message"] == f"Invalid sku {unknown_sku}"
+
+
+def test_allocation_and_query_responsibility(client_api) -> None:
+    sku = random_sku()
+    earlybatch = random_batchref(str(1))
+    post_stock(
+        client_api, [(earlybatch, sku, 100, "2011-01-02")],
+    )
+
+    orderid = random_orderid()
+    data = {"order_id": orderid, "sku": sku, "qty": 90}
+    # url = config.get_api_url()
+    r = client_api.post(f"/allocate", json=data)
+    assert r.status_code == 202
+
+    r = client_api.get(f"/allocations")
+    assert r.json[-1] == {
+        "id_orderline": orderid,
+        "batchref": earlybatch,
+        "sku": sku,
+        "qty": 90,
+    }
+
+    r = client_api.get(f"/allocations/{orderid}")
+    assert r.json[0] == {"batchref": earlybatch, "sku": sku, "qty": 90}

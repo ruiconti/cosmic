@@ -10,6 +10,11 @@ from datetime import datetime
 class Event:
     when: datetime = datetime.now()
 
+    def __str__(self) -> str:
+        d = self.__dict__
+        d["name"] = self.__class__.__name__
+        return str(d)
+
 
 @dataclass
 class OutOfStock(Event):

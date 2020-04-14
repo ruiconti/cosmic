@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 
 from allocation.domain import commands
 from allocation.service import handlers, unit_of_work, message_bus
+from allocation import views
 from allocation.adapters import orm
 
 orm.start_mappers()
@@ -28,6 +29,19 @@ def allocate_endpoint() -> tuple:
     except handlers.InvalidSku as ex:
         return jsonify({"message": ex.message}), 400
     return jsonify({"status": "ok"}), 202
+
+
+@app.route("/allocations", methods=["GET"])  # type: ignore
+@app.route("/allocations/<order_id>")
+def fetch_allocations(order_id: str = None) -> tuple:
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    if order_id:
+        result = views.allocations(order_id, uow)
+        if result:
+            return jsonify(result), 200
+        return jsonify({"message": "not found"}), 404
+    result = views.all_allocations(uow)
+    return jsonify(result), 200
 
 
 @app.route("/batch", methods=["POST"])  # type: ignore

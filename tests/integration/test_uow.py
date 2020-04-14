@@ -27,11 +27,14 @@ def insert_batch(session: Session, ref: str, sku: str, qty: int) -> None:
 
 def remove_batch(session: Session, sku: str) -> None:
 
-    [(batch_id,)] = list(
-        session.execute(
-            "SELECT id FROM batches WHERE sku = :sku", dict(sku=sku)
+    try:
+        [(batch_id,)] = list(
+            session.execute(
+                "SELECT id FROM batches WHERE sku = :sku", dict(sku=sku)
+            )
         )
-    )
+    except ValueError:
+        return
 
     orders = list(
         session.execute(

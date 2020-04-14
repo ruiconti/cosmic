@@ -48,6 +48,16 @@ allocations: Table = Table(
     Column("batch_id", ForeignKey("batches.id")),
 )
 
+allocations_view: Table = Table(
+    "allocations_view",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("id_orderline", String(255)),
+    Column("batchref", String(255)),
+    Column("sku", String(255)),
+    Column("qty", Integer),
+)
+
 
 def start_mappers(engine: Optional[Engine] = None) -> None:
     if engine:
@@ -75,6 +85,8 @@ def start_mappers(engine: Optional[Engine] = None) -> None:
     #     "batches": relationship(mapper_batches)})
 
 
+# Event below refers to ORM Events'
+# Behavior describet at: https://docs.sqlalchemy.org/en/13/orm/events.html#sqlalchemy.orm.events.InstanceEvents.load  # noqa: E501
 @event.listens_for(model.Product, "load")
 def receive_events_on_loading(product: model.Product, _: Any) -> None:
     product._events = []
