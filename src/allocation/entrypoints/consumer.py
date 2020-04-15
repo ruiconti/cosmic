@@ -9,11 +9,21 @@ from allocation.service import message_bus, unit_of_work
 logger = logging.getLogger(__name__)
 
 
+def parse_encoded_message(message: bytes) -> dict:
+    try:
+        return json.loads(message)
+    except Exception as ex:
+        logger.exception(f"Failed to parse message '{message!r}': {ex}")
+        return dict()
+
+
 def handle_allocation_commands(message: bytes) -> None:
-    data = json.loads(message)
-    logger.info(f"Handling external msg {data}")
-    cmd = commands.ChangeBatchQuantity(ref=data["batchref"], qty=data["qty"])
-    message_bus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
+    data = parse_encoded_message(message)
+    # if not data:
+    #     return
+    logger.info(f"Received external message '{data}'")
+    # cmd = commands.ChangeBatchQuantity(ref=data["batchref"], qty=data["qty"])
+    # message_bus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
 
 
 EXTERNAL_CHANNELS_HANDLERS = {"allocation-events": handle_allocation_commands}

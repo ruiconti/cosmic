@@ -4,12 +4,14 @@ import pytest  # type: ignore
 
 from pathlib import Path
 from typing import Callable
+
+import redis
 from sqlalchemy import engine, create_engine, orm  # type: ignore
 from tenacity import retry, stop_after_delay  # type: ignore
 
 
 from allocation import config  # type: ignore
-from allocation.entrypoints import app
+from allocation.entrypoints import app, consumer
 from allocation.adapters.orm import start_mappers, clear_mappers, metadata  # type: ignore
 
 
@@ -24,6 +26,11 @@ def wait_for_webapp_to_come_up() -> requests.Response:
 @retry(stop=stop_after_delay(10))
 def wait_for_engine_to_come_up(eng: engine.Engine) -> engine.Connection:
     return eng.connect()
+
+
+@retry(stop=stop_after_delay(10))
+def wait_for_redis_to_come_up(client: redis.Redis):
+    return client.ping()
 
 
 @pytest.fixture
@@ -88,3 +95,19 @@ def sqlite_session_factory(sqlite_db):
 @pytest.fixture
 def sqlite_session(sqlite_session_factory):
     yield sqlite_session_factory()
+
+
+@pytest.fixture
+def redis_client():
+    r = redis.Redis(**config.get_redis_uri())
+    wait_for_redis_to_come_up(r)
+    yield r
+    r.close()
+
+
+@pytest.fixture
+def redis_log_events_pubsub(redis_client):
+    pb = redis_client.pubsub(ignore_subscribe_messages=True)
+    pb.subscribe(consumer.EXTERNAL_CHANNELS_HANDLERS)
+    yield pb
+    pb.close()

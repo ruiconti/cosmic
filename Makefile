@@ -1,7 +1,7 @@
 .PHONY: run
 
 test:
-	pytest tests/ --color=yes --showlocals --tb=short
+	pytest tests/ --color=yes --showlocals --tb=short -v
 
 run:
 	export FLASK_APP=src/allocation/entrypoints/app.py
