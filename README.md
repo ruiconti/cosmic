@@ -1,4 +1,4 @@
-# Cosmic Python: Architecture Patterns
+# Architectural Patterns
 
 
 ### Virtual environment
@@ -31,3 +31,5 @@ TDD is being employed so in order to run and test implementations, abstracted to
 ```bash
 $ make test
 ```
+
+This is a self-study of the book Cosmic Python: Architectural Patterns.
