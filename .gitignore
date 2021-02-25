@@ -1,4 +1,5 @@
 .vscode/
+*.venv
 *cache*
 *.pyc
 *.coverage
