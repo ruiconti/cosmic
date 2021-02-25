@@ -86,4 +86,4 @@ This is a self-study of the book Cosmic Python: Architectural Patterns.
 
 ## Diagram
 
-notion://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F0ccd7f0d-d9cc-4bf5-9723-7323b2fe468b%2FNPL_Architecture(2).png?table=block&id=5d06060f-c331-416f-aac9-f027be901c0f&width=1820&userId=f2f0ad02-5a51-4e0b-9381-b24fe524ffd0&cache=v2
+![Architecture Design](img/design.png)
