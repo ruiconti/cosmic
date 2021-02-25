@@ -16,7 +16,7 @@ This is a work that is inspired mainly from the ideas of [Functional Core Impera
 
 ### Abstractions
 
-#### Domínio: `domain`
+#### Domain: `domain`
 
 1. **Imutabilidade**: `Value Object`
 Object that is defined by its attributes. Which *never* mutate.
