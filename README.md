@@ -18,13 +18,13 @@ This is a work that is inspired mainly from the ideas of [Functional Core Impera
 
 #### Domain: `domain`
 
-1. **Imutabilidade**: `Value Object`
+1. **Imutability**: `Value Object`
 Object that is defined by its attributes. Which *never* mutate.
 2. **Identifyiabilitye**: `Entity`
 Object whose attributes *change over time*. Has an identity.
 3. **Register**: `Event`
 Represents something that has happened within the system.
-4. **Ação**: `Command`
+4. **Actions**: `Command`
 Represents some work and command that the system must perform.
 5. **Consistency and invariants**: `Aggregate`
 Object that semantically abstracts a business macro-entity. It is composed of Value Objects and Entities. It is domain's entrypoint and where public domain services lives. It enables that we consider an aggregate as a whole, a single unity and, hence, preserve expected consistency inside those boundaries. Each operation within this bounded context ends in a *consitent and expected state*.
@@ -46,7 +46,7 @@ Orchestrates domain and adapter's workflows that are mapped to user stories.
 Enables decoupling of service and data layer. A unit of work acts as a single entrypoint to persitent storage. It holds, for each atomic operation, aggregate state.
 2. **Communication**: `Message Bus` (*barramento de mensagens*)
 Maps commands and events to handlers. Enables decoupling within service layer through a chain of handlers.
-3. **Action**: `Handler`
+3. **Orchestration**: `Handler`
 Workflow that must happen as a response to commands and events.
 
 
@@ -81,9 +81,12 @@ TDD is being employed so in order to run and test implementations, abstracted to
 $ make test
 ```
 
-This is a self-study of the book Cosmic Python: Architectural Patterns.
-
 
 ## Diagram
 
 ![Architecture Design](img/design.png)
+
+
+#### References
+
+This is a self-study of the book Cosmic Python: Architectural Patterns.
