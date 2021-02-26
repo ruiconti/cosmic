@@ -20,7 +20,7 @@ This is a work that is inspired mainly from the ideas of [Functional Core Impera
 
 1. **Imutability**: `Value Object`
 Object that is defined by its attributes. Which *never* mutate.
-2. **Identifyiabilitye**: `Entity`
+2. **Identifiability**: `Entity`
 Object whose attributes *change over time*. Has an identity.
 3. **Register**: `Event`
 Represents something that has happened within the system.
